@@ -17,13 +17,13 @@ jobs:
       - uses: ./.github/actions/python_project_setup
 
       - name: Ruff lint
-        run:  ruff check .
+        run:  uv run ruff check .
 
       - name: Ruff format check
-        run: ruff format --check .
+        run: uv run ruff format --check .
 
       - name: Mypy
-        run: mypy .
+        run: uv run mypy .
 
   test:
     runs-on: ubuntu-latest
@@ -33,7 +33,7 @@ jobs:
       - uses: ./.github/actions/python_project_setup
 
       - name: Pytest
-        run: pytest .
+        run: uv run pytest .
 
   build:
     runs-on: ubuntu-latest
