@@ -1,5 +1,5 @@
 [project]
-name = "mlops project"
+name = "mlops_project"
 version = "0.0.1"
 description = "Add your description here"
 readme = "README.md"
