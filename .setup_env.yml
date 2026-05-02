@@ -1,0 +1,7 @@
+.setup_venv:
+  before_script:
+    - export PATH="$HOME/.local/bin:$VENV_PATH/bin:$PATH"
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - uv venv --python $PYTHON_VERSION $VENV_PATH
+    - source $VENV_PATH/bin/activate
+    - uv sync

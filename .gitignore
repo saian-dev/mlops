@@ -1,0 +1,12 @@
+.idea
+.venv
+.gitkeep
+catboost_info
+*.parquet
+*.pkl
+__pycache__
+*.csv
+.env
+**/airflow/logs
+**/airflow/config
+**/airflow/plugins

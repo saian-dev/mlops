@@ -1,0 +1,53 @@
+services:
+  fastapi:
+    image: mlops.gitlab.yandexcloud.net:5050/s27980397/mlops_final_project_badarchy_saian:latest
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "8000:32000"
+    environment:
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - S3_MODELS_FOLDER_NAME=${S3_MODELS_FOLDER_NAME}
+      - MODEL_FILENAME=${MODEL_FILENAME}
+      - S3_PROCESSED_DATA_FOLDER_NAME=${S3_PROCESSED_DATA_FOLDER_NAME}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:32000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - monitoring
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    ports:
+      - "8082:8080"
+    command:
+      - "--docker_only=true"
+      - "--housekeeping_interval=10s"
+      - "--storage_duration=2m"
+    volumes:
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge

@@ -1,0 +1,101 @@
+include: .setup_env.yml
+
+default:
+  tags: [k8s]
+  image: python:3.12-bookworm
+
+variables:
+  VENV_PATH: "$CI_PROJECT_DIR/.venv"
+  PYTHON_VERSION: "3.12"
+
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+linter:
+  stage: lint
+  extends: .setup_venv
+  script:
+    - ruff check .
+
+formater:
+  stage: lint
+  extends: .setup_venv
+  script:
+    - ruff format --check .
+
+mypy_check:
+  stage: lint
+  extends: .setup_venv
+  script:
+    - mypy .
+
+pytest:
+  stage: test
+  extends: .setup_venv
+  script:
+    - pytest .
+
+build:
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  image:
+    name: moby/buildkit:rootless
+    entrypoint: [""]
+  variables:
+    BUILDKITD_FLAGS: --oci-worker-no-process-sandbox
+  before_script:
+    - mkdir -p ~/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
+  script:
+    - |
+      buildctl-daemonless.sh build \
+        --frontend dockerfile.v0 \
+        --local context=. \
+        --local dockerfile=. \
+        --opt oci-mediatypes=true \
+        --opt compression=zstd \
+        --opt compression-level=3 \
+        --opt force-compression=true \
+        --output type=image,\"name=${CI_REGISTRY_IMAGE}:${CI_COMMIT_BRANCH}_${CI_COMMIT_SHORT_SHA},${CI_REGISTRY_IMAGE}:latest\",push=true
+
+deploy:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: on_success
+  before_script:
+    - mkdir -p ~/.ssh
+
+    - echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+
+    - eval $(ssh-agent -s)
+    - ssh-add ~/.ssh/id_ed25519
+
+    - ssh-keyscan -t ecdsa -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - |
+      ssh $DEPLOY_USER@$DEPLOY_HOST "mkdir -p ~/final_project"
+      scp mlops/deploy/docker-compose.yaml $DEPLOY_USER@$DEPLOY_HOST:~/final_project/
+      ssh $DEPLOY_USER@$DEPLOY_HOST << EOF
+        cd ~/final_project
+        docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+
+        export IMAGE_TAG=${CI_COMMIT_BRANCH}_${CI_COMMIT_SHORT_SHA}
+        export CI_REGISTRY_IMAGE=${CI_REGISTRY_IMAGE}
+        export S3_ACCESS_KEY=${S3_ACCESS_KEY}
+        export S3_SECRET_KEY=${S3_SECRET_KEY}
+        export S3_ENDPOINT_URL=${S3_ENDPOINT_URL}
+        export S3_BUCKET_NAME=${S3_BUCKET_NAME}
+        export S3_MODELS_FOLDER_NAME=${S3_MODELS_FOLDER_NAME}
+        export MODEL_FILENAME=${MODEL_FILENAME}
+        export S3_PROCESSED_DATA_FOLDER_NAME=${S3_PROCESSED_DATA_FOLDER_NAME}
+
+        docker compose pull
+        docker compose up -d
+      EOF

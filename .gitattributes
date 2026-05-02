@@ -1,0 +1,4 @@
+data/category_tree.csv filter=lfs diff=lfs merge=lfs -text
+data/events.csv filter=lfs diff=lfs merge=lfs -text
+data/item_properties_part1.csv filter=lfs diff=lfs merge=lfs -text
+data/item_properties_part2.csv filter=lfs diff=lfs merge=lfs -text
