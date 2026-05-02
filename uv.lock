@@ -426,7 +426,7 @@ wheels = [
 ]
 
 [[package]]
-name = "mlps-final-project"
+name = "mlops-project"
 version = "0.0.1"
 source = { virtual = "." }
 dependencies = [
